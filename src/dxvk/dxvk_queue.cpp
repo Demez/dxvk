@@ -1,6 +1,10 @@
 #include "dxvk_device.h"
 #include "dxvk_queue.h"
 
+#include "VkSubmitThreadCallback.h"
+
+extern VkSubmitThreadCallback *g_pVkSubmitThreadCallback;
+
 namespace dxvk {
   
   DxvkSubmissionQueue::DxvkSubmissionQueue(DxvkDevice* device)
@@ -108,7 +112,17 @@ namespace dxvk {
             entry.submit.waitSync,
             entry.submit.wakeSync);
         } else if (entry.present.presenter != nullptr) {
-          status = entry.present.presenter->presentImage();
+          if (g_pVkSubmitThreadCallback != nullptr)
+		  {
+	        g_pVkSubmitThreadCallback->PrePresentCallBack();
+		  }
+
+		  status = entry.present.presenter->presentImage();
+
+		  if (g_pVkSubmitThreadCallback != nullptr)
+		  {
+		    g_pVkSubmitThreadCallback->PostPresentCallback();
+		  }
         }
       } else {
         // Don't submit anything after device loss

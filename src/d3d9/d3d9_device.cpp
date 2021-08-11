@@ -23,11 +23,36 @@
 
 #include "d3d9_initializer.h"
 
+#include "VkSubmitThreadCallback.h"
+#include "../vr/vr_system.h"
+
 #include <algorithm>
 #include <cfloat>
 #ifdef MSC_VER
 #pragma fenv_access (on)
 #endif
+
+VkSubmitThreadCallback *g_pVkSubmitThreadCallback = nullptr;
+
+namespace
+{
+	D3DMULTISAMPLE_TYPE MapToMultisampleType(int codedMsaa)
+	{
+		switch (codedMsaa)
+		{
+		case 4:
+			return D3DMULTISAMPLE_16_SAMPLES;
+		case 3:
+			return D3DMULTISAMPLE_8_SAMPLES;
+		case 2:
+			return D3DMULTISAMPLE_4_SAMPLES;
+		case 1:
+			return D3DMULTISAMPLE_2_SAMPLES;
+		default:
+			return D3DMULTISAMPLE_NONE;
+		}
+	}
+}
 
 namespace dxvk {
 
@@ -80,6 +105,9 @@ namespace dxvk {
     CreateConstantBuffers();
 
     m_availableMemory = DetermineInitialTextureMemory();
+
+    g_vrSystem = BaseVRSystem::Create();
+    g_pVkSubmitThreadCallback = g_vrSystem->GetVkSubmitThreadCallback();
   }
 
 
@@ -381,6 +409,24 @@ namespace dxvk {
     if (unlikely(ppTexture == nullptr))
       return D3DERR_INVALIDCALL;
 
+    // DXVK_VR
+    int index = -1;
+    D3DMULTISAMPLE_TYPE multiSample = D3DMULTISAMPLE_NONE;
+    uint32_t rtWidth, rtHeight;
+    g_vrSystem->GetRenderTargetSize(rtWidth, rtHeight);
+    //Double width for both eyes
+    // rtWidth *= 2;
+
+    if (Width == rtWidth && Height >= rtHeight && Height <= rtHeight + 15) {
+        int codedIndexMsaa = Height - rtHeight;
+        index = codedIndexMsaa / 5;
+        int msaa = codedIndexMsaa % 5;
+        multiSample = MapToMultisampleType(msaa);
+
+        // Width = rtWidth;
+        Height = rtHeight;
+    }
+
     D3D9_COMMON_TEXTURE_DESC desc;
     desc.Width              = Width;
     desc.Height             = Height;
@@ -409,6 +455,35 @@ namespace dxvk {
 
       m_initializer->InitTexture(texture->GetCommonTexture(), initialData);
       *ppTexture = texture.ref();
+
+      // DXVK_VR
+      if (index != -1)
+      {
+          vr::VRVulkanTextureData_t vulkanData;
+          memset(&vulkanData, 0, sizeof(vr::VRVulkanTextureData_t));
+
+          //Set these here to indicate to DXVK this is a texture data object (a little hacky, but does the trick)
+          vulkanData.m_nHeight = Height;
+          vulkanData.m_nWidth = Width;
+
+          //VkPhysicalDevice
+          vulkanData.m_pPhysicalDevice = GetDXVKDevice()->adapter()->handle();
+          //VkDevice
+          vulkanData.m_pDevice = GetDXVKDevice()->handle();
+          //VkImage
+          vulkanData.m_nImage = (uint64_t)(texture->GetCommonTexture()->GetImage()->handle());
+          //VkInstance
+          vulkanData.m_pInstance = GetDXVKDevice()->instance()->vki()->instance();
+          //VkQueue
+          vulkanData.m_pQueue = GetDXVKDevice()->queues().graphics.queueHandle;
+
+          vulkanData.m_nQueueFamilyIndex = GetDXVKDevice()->queues().graphics.queueFamily;
+
+          vulkanData.m_nFormat = VK_FORMAT_B8G8R8A8_UNORM;
+          vulkanData.m_nSampleCount = (int)multiSample;
+
+          g_vrSystem->StoreSharedTexture(index, &vulkanData);
+      }
 
       return D3D_OK;
     }
@@ -1577,6 +1652,20 @@ namespace dxvk {
       return D3D_OK;
 
     m_state.viewport = *pViewport;
+
+    // VR HACK
+    if ( g_vrSystem->IsRenderTargetActive() )
+    {
+        for ( auto rt : m_state.renderTargets )
+        {
+            if ( rt == nullptr )
+                continue;
+
+            VkExtent2D extent = rt->GetSurfaceExtent();
+            m_state.viewport.Width = extent.width;
+            m_state.viewport.Height = extent.height;
+        }
+    }
 
     m_flags.set(D3D9DeviceFlag::DirtyViewportScissor);
     m_flags.set(D3D9DeviceFlag::DirtyFFViewport);
@@ -3391,12 +3480,19 @@ namespace dxvk {
           HWND hDestWindowOverride,
     const RGNDATA* pDirtyRegion,
           DWORD dwFlags) {
-    return m_implicitSwapchain->Present(
+
+	g_vrSystem->PrePresent();
+
+    HRESULT result = m_implicitSwapchain->Present(
       pSourceRect,
       pDestRect,
       hDestWindowOverride,
       pDirtyRegion,
       dwFlags);
+
+    g_vrSystem->PostPresent();
+
+    return result;
   }
 
 
@@ -3504,6 +3600,21 @@ namespace dxvk {
 
     if (unlikely(ppSurface == nullptr))
       return D3DERR_INVALIDCALL;
+
+    uint32_t rtWidth, rtHeight;
+    g_vrSystem->GetRenderTargetSize(rtWidth, rtHeight);
+    //Double width for both eyes
+    // rtWidth *= 2;
+
+    if (Width == rtWidth && Height >= rtHeight && Height <= rtHeight + 15) {
+        int codedIndexMsaa = Height - rtHeight;
+        int msaa = codedIndexMsaa % 5;
+
+        MultiSample = MapToMultisampleType(msaa);
+
+        // Width = rtWidth;
+        Height = rtHeight;
+    }
 
     D3D9_COMMON_TEXTURE_DESC desc;
     desc.Width              = Width;
