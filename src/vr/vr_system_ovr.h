@@ -45,10 +45,11 @@ public:
 	//HMDInterface
 	virtual void PrePresent();
 	virtual void PostPresent();
-	virtual void StartFrame();
 	virtual void StoreSharedTexture(int index, vr::VRVulkanTextureData_t* pVRVulkanTextureData);
 	virtual int GetCurrentRenderTexture();
 	virtual int GetTotalStoredTextures();
+
+	virtual void StartFrame();
 
 private:
 	SharedTextureHolder			m_SharedTextureHolder[2];

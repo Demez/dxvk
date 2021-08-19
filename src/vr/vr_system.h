@@ -26,11 +26,11 @@ public:
 
 	virtual void PrePresent() = 0;
 	virtual void PostPresent() = 0;
-	// virtual bool IsConnected() = 0;
-	virtual void StartFrame() = 0;
 	virtual void StoreSharedTexture(int index, vr::VRVulkanTextureData_t* pVRVulkanTextureData) = 0;
 	virtual int GetCurrentRenderTexture() = 0;
 	virtual int GetTotalStoredTextures() = 0;
+
+	virtual void StartFrame() = 0;
 };
 
 extern BaseVRSystem* g_vrSystem;

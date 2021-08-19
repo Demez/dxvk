@@ -68,7 +68,7 @@ OpenVRSystem::OpenVRSystem() :
 	m_nRenderWidth(-1),
 	m_nRenderHeight(-1),
 	m_hasHMDAttached(true),
-	m_posesStale(true)
+	m_posesStale(false)
 {
 	memset(m_SharedTextureHolder, 0, sizeof(m_SharedTextureHolder));
 }
@@ -148,7 +148,8 @@ void OpenVRSystem::PrePresent()
 			{
 				m_leftTexture = m_currentRenderTexture;
 			}
-			else
+			// else
+			else if ( m_rightTexture == -1 )
 			{
 				m_rightTexture = m_currentRenderTexture;
 			}
@@ -205,8 +206,8 @@ void OpenVRSystem::PrePresentCallBack()
 			m_gameVR->HandleSubmitError( compositor->Submit(vr::Eye_Right, &(m_SharedTextureHolder[m_rightTexture].m_VRTexture), &rightBounds) );
 		}
 
-		m_leftTexture = -1;
-		m_rightTexture = -1;
+		//m_leftTexture = -1;
+		//m_rightTexture = -1;
 		m_currentRenderTexture = -1;
 	}
 }
@@ -231,7 +232,6 @@ void OpenVRSystem::PostPresentCallback()
 	}
 }
 
-
 void OpenVRSystem::StartFrame()
 {
 	if (!m_initialised)
@@ -244,6 +244,7 @@ void OpenVRSystem::StartFrame()
 
 		if (m_posesStale)
 		{
+			// will be released when the above function is called
 			m_cv.wait(lock);
 		}
 	}
