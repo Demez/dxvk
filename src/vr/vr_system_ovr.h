@@ -49,6 +49,9 @@ public:
 	virtual int GetCurrentRenderTexture();
 	virtual int GetTotalStoredTextures();
 
+	virtual void SetMultiSampleEnabled( bool enabled );
+	virtual bool IsMultiSampleEnabled();
+
 	virtual void StartFrame();
 
 private:
@@ -66,6 +69,8 @@ private:
 	bool m_hasHMDAttached;
 	bool m_bRTActive;
 	int m_nextRTIsEye;
+
+	bool m_multiSample;
 
 	std::atomic<int>   m_leftTexture = { -1 };
 	std::atomic<int>   m_rightTexture = { -1 };

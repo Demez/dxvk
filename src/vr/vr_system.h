@@ -30,6 +30,9 @@ public:
 	virtual int GetCurrentRenderTexture() = 0;
 	virtual int GetTotalStoredTextures() = 0;
 
+	virtual void SetMultiSampleEnabled( bool enabled ) = 0;
+	virtual bool IsMultiSampleEnabled() = 0;
+
 	virtual void StartFrame() = 0;
 };
 

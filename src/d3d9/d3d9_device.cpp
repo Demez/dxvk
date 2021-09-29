@@ -411,13 +411,28 @@ namespace dxvk {
 
     // DXVK_VR
     int index = -1;
-    D3DMULTISAMPLE_TYPE multiSample = D3DMULTISAMPLE_NONE;
+
+    D3DMULTISAMPLE_TYPE multiSampleType = D3DMULTISAMPLE_NONE;
+    DWORD multiSampleQuality = 0;
+
     uint32_t rtWidth, rtHeight;
     g_vrSystem->GetRenderTargetSize(rtWidth, rtHeight);
     //Double width for both eyes
     // rtWidth *= 2;
 
-    if (Width == rtWidth && Height >= rtHeight && Height <= rtHeight + 15) {
+    // we are creating a vr rendertarget
+    if (Width == rtWidth && Height == rtHeight)
+    {
+        index = 0;
+
+        if ( g_vrSystem->IsMultiSampleEnabled() )
+        {
+            multiSampleQuality = m_implicitSwapchain->GetPresentParams()->MultiSampleQuality;
+            multiSampleType = m_implicitSwapchain->GetPresentParams()->MultiSampleType;
+        }
+    }
+
+    /*if (Width == rtWidth && Height >= rtHeight && Height <= rtHeight + 15) {
         int codedIndexMsaa = Height - rtHeight;
         index = codedIndexMsaa / 5;
         int msaa = codedIndexMsaa % 5;
@@ -425,7 +440,7 @@ namespace dxvk {
 
         // Width = rtWidth;
         Height = rtHeight;
-    }
+    }*/
 
     D3D9_COMMON_TEXTURE_DESC desc;
     desc.Width              = Width;
@@ -437,8 +452,10 @@ namespace dxvk {
     desc.Format             = EnumerateFormat(Format);
     desc.Pool               = Pool;
     desc.Discard            = FALSE;
-    desc.MultiSample        = D3DMULTISAMPLE_NONE;
-    desc.MultisampleQuality = 0;
+    //desc.MultiSample        = D3DMULTISAMPLE_NONE;
+    //desc.MultisampleQuality = 0;
+    desc.MultiSample        = multiSampleType;
+    desc.MultisampleQuality = multiSampleQuality;
     desc.IsBackBuffer       = FALSE;
     desc.IsAttachmentOnly   = FALSE;
 
@@ -480,7 +497,7 @@ namespace dxvk {
           vulkanData.m_nQueueFamilyIndex = GetDXVKDevice()->queues().graphics.queueFamily;
 
           vulkanData.m_nFormat = VK_FORMAT_B8G8R8A8_UNORM;
-          vulkanData.m_nSampleCount = (int)multiSample;
+          vulkanData.m_nSampleCount = (int)multiSampleType;
 
           g_vrSystem->StoreSharedTexture(index, &vulkanData);
       }
@@ -3605,8 +3622,15 @@ namespace dxvk {
     g_vrSystem->GetRenderTargetSize(rtWidth, rtHeight);
     //Double width for both eyes
     // rtWidth *= 2;
+    
+    // we are creating a vr rendertarget
+    if ( Width == rtWidth && Height == rtHeight && g_vrSystem->IsMultiSampleEnabled() )
+    {
+        MultisampleQuality = m_implicitSwapchain->GetPresentParams()->MultiSampleQuality;
+        MultiSample = m_implicitSwapchain->GetPresentParams()->MultiSampleType;
+    }
 
-    if (Width == rtWidth && Height >= rtHeight && Height <= rtHeight + 15) {
+    /*if (Width == rtWidth && Height >= rtHeight && Height <= rtHeight + 15) {
         int codedIndexMsaa = Height - rtHeight;
         int msaa = codedIndexMsaa % 5;
 
@@ -3614,7 +3638,7 @@ namespace dxvk {
 
         // Width = rtWidth;
         Height = rtHeight;
-    }
+    }*/
 
     D3D9_COMMON_TEXTURE_DESC desc;
     desc.Width              = Width;

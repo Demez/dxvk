@@ -68,7 +68,8 @@ OpenVRSystem::OpenVRSystem() :
 	m_nRenderWidth(-1),
 	m_nRenderHeight(-1),
 	m_hasHMDAttached(true),
-	m_posesStale(false)
+	m_posesStale(false),
+	m_multiSample(false)
 {
 	memset(m_SharedTextureHolder, 0, sizeof(m_SharedTextureHolder));
 }
@@ -129,6 +130,17 @@ void OpenVRSystem::GetRenderTargetSize( uint32_t &width, uint32_t &height )
 void OpenVRSystem::NextCreateTextureIsEye( vr::EVREye eye )
 {
 	m_nextRTIsEye = eye;
+}
+
+
+void OpenVRSystem::SetMultiSampleEnabled( bool enabled )
+{
+	m_multiSample = enabled;
+}
+
+bool OpenVRSystem::IsMultiSampleEnabled()
+{
+	return m_multiSample;
 }
 
 
